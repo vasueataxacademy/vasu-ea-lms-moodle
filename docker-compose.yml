@@ -1,41 +1,56 @@
-version: '3.8'
+version: "3.8"
 
 services:
   moodle:
     image: bitnami/moodle:latest
-    ports:
-      - "8080:8080"
-      - "8443:8443"
+    container_name: moodle
     environment:
-      - MOODLE_USERNAME=admin
-      - MOODLE_PASSWORD=adminpass
-      - MOODLE_EMAIL=admin@example.com
+      - MOODLE_USERNAME=${MOODLE_USERNAME}
+      - MOODLE_PASSWORD=${MOODLE_PASSWORD}
+      - MOODLE_EMAIL=${MOODLE_EMAIL}
       - MOODLE_DATABASE_HOST=mariadb
       - MOODLE_DATABASE_PORT_NUMBER=3306
-      - MOODLE_DATABASE_USER=bn_moodle
-      - MOODLE_DATABASE_NAME=bitnami_moodle
-      - MOODLE_DATABASE_PASSWORD=moodlepass
+      - MOODLE_DATABASE_NAME=${MARIADB_DATABASE}
+      - MOODLE_DATABASE_USER=${MARIADB_USER}
+      - MOODLE_DATABASE_PASSWORD=${MARIADB_PASSWORD}
       - BITNAMI_DEBUG=true
-
+    ports:
+      - "8080:8080"
     volumes:
-      - moodle_data:/bitnami/moodle
-      - moodledata_data:/bitnami/moodledata
+      - ./data/moodle:/bitnami/moodle
+      - ./data/moodledata:/bitnami/moodledata
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
+    restart: always
 
   mariadb:
     image: bitnami/mariadb:latest
+    container_name: mariadb
     environment:
-      - MARIADB_ROOT_PASSWORD=rootpass
-      - MARIADB_DATABASE=bitnami_moodle
-      - MARIADB_USER=bn_moodle
-      - MARIADB_PASSWORD=moodlepass
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${MARIADB_DATABASE}
+      - MARIADB_USER=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
       - MARIADB_CHARACTER_SET=utf8mb4
       - MARIADB_COLLATE=utf8mb4_unicode_ci
     volumes:
-      - mariadb_data:/bitnami/mariadb
+      - ./data/mariadb:/bitnami/mariadb
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/mariadb/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
 
-volumes:
-  moodle_data:
-  moodledata_data:
-  mariadb_data:
+  moodle-cron:
+    image: curlimages/curl
+    container_name: moodle-cron
+    depends_on:
+      - moodle
+    command: >
+      sh -c "while true; do
+               curl -s http://moodle:8080/admin/cron.php >/dev/null 2>&1;
+               sleep 60;
+             done"
+    restart: always
