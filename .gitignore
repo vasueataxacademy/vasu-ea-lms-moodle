@@ -1,5 +1,6 @@
 #nginx certificates
 nginx/ssl
+nginx/html
 
 #moodle data
 data
