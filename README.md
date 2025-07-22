@@ -74,16 +74,27 @@ MARIADB_PASSWORD=your_db_password
 REDIS_PASSWORD=your_redis_password
 ```
 
-### 3. Deploy
+### 3. Deploy Core Services
 ```bash
-# Start all services
-docker-compose up -d
+# Start core services (without nginx for SSL setup)
+docker-compose up -d moodle mariadb redis moodlecron
 
 # Check status
 docker-compose ps
 
 # View logs
 docker-compose logs -f moodle
+```
+
+### 4. Setup SSL Certificate
+After core services are running, set up SSL certificates using one of the options in the SSL/HTTPS Setup section below, then start nginx:
+
+```bash
+# After SSL certificate is obtained
+docker-compose up -d nginx
+
+# Verify all services are running
+docker-compose ps
 ```
 
 ## 🔧 Resource Allocation (2 vCPU System)
@@ -98,27 +109,109 @@ docker-compose logs -f moodle
 
 ## 🔒 SSL/HTTPS Setup
 
-### Initial SSL Certificate
+### Certificate Type Comparison
+
+| Feature | Wildcard (`*.yourdomain.com`) | Subdomain-Specific (`sub.yourdomain.com`) |
+|---------|-------------------------------|-------------------------------------------|
+| **Coverage** | All subdomains | Single subdomain only |
+| **Renewal** | **Manual for Non API DNS like Namecheap** | **Fully automated** |
+| **Best For** | Multiple subdomains | Single subdomain |
+| **Setup Complexity** | Medium (DNS required) | Easy (automated) |
+| **Validation** | DNS challenge (TXT record) | HTTP challenge (webroot) |
+| **Namecheap Friendly** | Manual process | Recommended ✅ |
+
+### Option 1: Subdomain-Specific Certificate Setup
+
+**Initial Certificate:**
 ```bash
 # Stop nginx temporarily
 docker-compose stop nginx
 
-# Get initial certificate
-docker run --rm -v $(pwd)/nginx/ssl:/etc/letsencrypt \
+# Get subdomain certificate (HTTP validation)
+docker run --rm \
+  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
   -v $(pwd)/nginx/html:/usr/share/nginx/html \
-  certbot/certbot certonly --webroot \
-  -w /usr/share/nginx/html \
-  -d your-domain.com
+  certbot/certbot certonly \
+  --webroot -w /usr/share/nginx/html \
+  -d subdomain.yourdomain.com \
+  --non-interactive \
+  --agree-tos \
+  --email youremail@yourdomain.com
 
 # Start nginx
 docker-compose start nginx
 ```
 
-### SSL Renewal (Add to crontab)
+**Nginx Configuration:**
+```bash
+ssl_certificate /etc/letsencrypt/live/subdomain.yourdomain.com/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/subdomain.yourdomain.com/privkey.pem;
+```
+
+**Renewal (Automated):**
 ```bash
 # Add to crontab -e
-0 3 * * 0 docker run --rm -v $(pwd)/nginx/ssl:/etc/letsencrypt -v $(pwd)/nginx/html:/usr/share/nginx/html certbot/certbot renew --webroot -w /usr/share/nginx/html && docker-compose restart nginx
+0 3 * * 0 docker run --rm \
+  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
+  -v $(pwd)/nginx/html:/usr/share/nginx/html \
+  certbot/certbot renew \
+  --webroot -w /usr/share/nginx/html \
+  --email youremail@yourdomain.com && \
+  docker-compose restart nginx
 ```
+
+### Option 2: Wildcard Certificate Setup
+
+**Initial Certificate:**
+```bash
+# Stop nginx temporarily
+docker-compose stop nginx
+
+# Get wildcard certificate (requires DNS validation)
+docker run --rm -it \
+  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
+  certbot/certbot certonly \
+  --manual \
+  --preferred-challenges dns \
+  -d "*.yourdomain.com" \
+  --agree-tos \
+  --email youremail@yourdomain.com
+
+# Start nginx
+docker-compose start nginx
+```
+
+**Namecheap DNS Steps:**
+1. When prompted, certbot shows a TXT record
+2. Login to Namecheap → Domain List → Manage → Advanced DNS
+3. Add TXT record:
+   - Host: `_acme-challenge`
+   - Value: (string from certbot)
+   - TTL: 1 min
+4. Wait 2-3 minutes, then press Enter in certbot
+
+**Nginx Configuration:**
+```bash
+ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+```
+
+**Renewal (Manual):**
+```bash
+# Set calendar reminder every 2 months
+docker-compose stop nginx
+docker run --rm -it \
+  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
+  certbot/certbot renew \
+  --manual \
+  --preferred-challenges dns
+docker-compose start nginx
+```
+
+### Recommendation for Non API available DNS (E.g. Namecheap) Users:
+- **Single subdomain**: Use Option 2 (subdomain-specific) for automated renewal
+- **Multiple subdomains**: Use Option 1 (wildcard) but accept manual renewal process
+- **Production**: Consider transferring DNS to Cloudflare for wildcard automation
 
 ## 💾 Backup & Restore
 
@@ -185,6 +278,27 @@ docker exec -it mariadb mysql -u root -p -e "OPTIMIZE TABLE moodle.*;"
 ## 🔧 Troubleshooting
 
 ### Common Issues
+
+**Directory Permission Issues**
+```bash
+# Stop all containers first
+docker-compose down
+
+# Remove existing data directory if it exists
+sudo rm -rf data/mariadb
+
+# Create the directory with proper ownership
+mkdir -p data/mariadb
+sudo chown -R 1001:1001 data/mariadb
+sudo chmod -R 755 data/mariadb
+
+# Also fix other data directories while we're at it
+sudo chown -R 1001:1001 data/moodle data/moodledata data/redis
+sudo chmod -R 755 data/
+
+# Start containers again
+docker-compose up -d
+```
 
 **Out of Memory**
 ```bash
