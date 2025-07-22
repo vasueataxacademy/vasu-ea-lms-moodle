@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   nginx:
     image: nginx:alpine
@@ -15,21 +13,13 @@ services:
       - ./nginx/html:/usr/share/nginx/html
     restart: always
 
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./nginx/ssl:/etc/letsencrypt
-      - ./nginx/html:/usr/share/nginx/html
-    command: >
-      certonly --webroot --webroot-path=/usr/share/nginx/html
-      --email your-email@example.com
-      --agree-tos --no-eff-email
-      -d yourdomain.com -d www.yourdomain.com
-
   moodle:
     image: bitnami/moodle:latest
     container_name: moodle
+    depends_on:
+      - mariadb
+    expose:
+      - "8080"
     environment:
       - MOODLE_USERNAME=${MOODLE_USERNAME}
       - MOODLE_PASSWORD=${MOODLE_PASSWORD}
@@ -39,8 +29,6 @@ services:
       - MOODLE_DATABASE_NAME=${MARIADB_DATABASE}
       - MOODLE_DATABASE_USER=${MARIADB_USER}
       - MOODLE_DATABASE_PASSWORD=${MARIADB_PASSWORD}
-    expose:
-      - "8080"
     volumes:
       - ./data/moodle:/bitnami/moodle
       - ./data/moodledata:/bitnami/moodledata
@@ -59,3 +47,11 @@ services:
     volumes:
       - ./data/mariadb:/bitnami/mariadb
     restart: always
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+      - ./nginx/html:/usr/share/nginx/html
+    entrypoint: ""  # Keeps it from auto-running
