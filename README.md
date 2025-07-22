@@ -14,11 +14,12 @@ This repository contains a production-ready Docker setup for [Moodle LMS](https:
 
 ## 📁 Directory Structure
 
-/__
+/
+└──
   ├── docker-compose.yml
   ├── .env.example ← Rename to .env and fill in
   ├── README.md
   └── data/
-  ├── moodle/ ← Moodle app files
-  ├── moodledata/ ← Uploaded files, sessions
-  └── mariadb/ ← MariaDB data
+    ├── moodle/ ← Moodle app files
+    ├── moodledata/ ← Uploaded files, sessions
+    └── mariadb/ ← MariaDB data
