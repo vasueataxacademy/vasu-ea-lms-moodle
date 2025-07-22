@@ -20,6 +20,7 @@ services:
       - mariadb
     expose:
       - "8080"
+      - "8443"
     environment:
       - MOODLE_USERNAME=${MOODLE_USERNAME}
       - MOODLE_PASSWORD=${MOODLE_PASSWORD}
