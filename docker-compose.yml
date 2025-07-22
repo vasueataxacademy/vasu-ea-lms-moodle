@@ -1,6 +1,6 @@
 services:
   nginx:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
     container_name: nginx
     depends_on:
       - moodle
@@ -12,12 +12,26 @@ services:
       - ./nginx/ssl:/etc/letsencrypt
       - ./nginx/html:/usr/share/nginx/html
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 60s
+      timeout: 15s
+      retries: 2
 
   moodle:
-    image: bitnami/moodle:latest
+    image: bitnami/moodle:4.3.2
     container_name: moodle
     depends_on:
       - mariadb
+      - redis
     expose:
       - "8080"
       - "8443"
@@ -30,13 +44,30 @@ services:
       - MOODLE_DATABASE_NAME=${MARIADB_DATABASE}
       - MOODLE_DATABASE_USER=${MARIADB_USER}
       - MOODLE_DATABASE_PASSWORD=${MARIADB_PASSWORD}
+      - MOODLE_REDIS_HOST=redis
+      - MOODLE_REDIS_PORT_NUMBER=6379
+      - MOODLE_CACHE_STORE_SESSION=redis
+      - PHP_MEMORY_LIMIT=256M
     volumes:
       - ./data/moodle:/bitnami/moodle
       - ./data/moodledata:/bitnami/moodledata
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.8'
+        reservations:
+          memory: 256M
+          cpus: '0.4'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login/index.php"]
+      interval: 120s
+      timeout: 30s
+      retries: 2
 
   mariadb:
-    image: bitnami/mariadb:latest
+    image: bitnami/mariadb:11.1
     container_name: mariadb
     environment:
       - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
@@ -48,6 +79,87 @@ services:
     volumes:
       - ./data/mariadb:/bitnami/mariadb
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.8'
+        reservations:
+          memory: 256M
+          cpus: '0.2'
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: bitnami/redis:7.2
+    container_name: redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - ./data/redis:/bitnami/redis/data
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  moodlecron:
+    image: bitnami/moodle:4.3.2
+    container_name: moodlecron
+    depends_on:
+      - mariadb
+      - redis
+      - moodle
+    environment:
+      - MOODLE_USERNAME=${MOODLE_USERNAME}
+      - MOODLE_PASSWORD=${MOODLE_PASSWORD}
+      - MOODLE_EMAIL=${MOODLE_EMAIL}
+      - MOODLE_DATABASE_HOST=mariadb
+      - MOODLE_DATABASE_PORT_NUMBER=3306
+      - MOODLE_DATABASE_NAME=${MARIADB_DATABASE}
+      - MOODLE_DATABASE_USER=${MARIADB_USER}
+      - MOODLE_DATABASE_PASSWORD=${MARIADB_PASSWORD}
+      - MOODLE_REDIS_HOST=redis
+      - MOODLE_REDIS_PORT_NUMBER=6379
+      - MOODLE_CACHE_STORE_SESSION=redis
+    volumes:
+      - ./data/moodle:/bitnami/moodle
+      - ./data/moodledata:/bitnami/moodledata
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    command: >
+      bash -c "
+        while true; do
+          echo \"[$(date)] Running Moodle cron...\"
+          /opt/bitnami/php/bin/php /bitnami/moodle/admin/cli/cron.php
+          echo \"[$(date)] Moodle cron completed. Sleeping for 5 minutes...\"
+          sleep 300
+        done
+      "
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "cron.php"]
+      interval: 300s
+      timeout: 30s
+      retries: 2
 
   certbot:
     image: certbot/certbot
