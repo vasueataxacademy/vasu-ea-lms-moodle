@@ -86,6 +86,13 @@ docker-compose ps
 docker-compose logs -f moodle
 ```
 
+*** Final config.php in Moodle container ***
+Make sure Moodle is aware it's behind SSL:
+```
+$CFG->wwwroot = 'https://yourdomain.com';
+$CFG->sslproxy = true;
+```
+
 ### 4. Setup SSL Certificate
 After core services are running, set up SSL certificates using one of the options in the SSL/HTTPS Setup section below, then start nginx:
 

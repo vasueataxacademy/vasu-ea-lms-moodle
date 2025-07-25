@@ -12,14 +12,14 @@ services:
       - ./nginx/ssl:/etc/letsencrypt
       - ./nginx/html:/usr/share/nginx/html
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-          cpus: '0.1'
-        reservations:
-          memory: 32M
-          cpus: '0.05'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 64M
+    #       cpus: '0.1'
+    #     reservations:
+    #       memory: 32M
+    #       cpus: '0.05'
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 60s
@@ -52,14 +52,14 @@ services:
       - ./data/moodle:/bitnami/moodle
       - ./data/moodledata:/bitnami/moodledata
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.8'
-        reservations:
-          memory: 256M
-          cpus: '0.4'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 512M
+    #       cpus: '0.8'
+    #     reservations:
+    #       memory: 256M
+    #       cpus: '0.4'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/login/index.php"]
       interval: 120s
@@ -79,14 +79,14 @@ services:
     volumes:
       - ./data/mariadb:/bitnami/mariadb
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.8'
-        reservations:
-          memory: 256M
-          cpus: '0.2'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 1G
+    #       cpus: '0.8'
+    #     reservations:
+    #       memory: 256M
+    #       cpus: '0.2'
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 30s
@@ -101,14 +101,14 @@ services:
     volumes:
       - ./data/redis:/bitnami/redis/data
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 64M
-          cpus: '0.1'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 512M
+    #       cpus: '0.5'
+    #     reservations:
+    #       memory: 64M
+    #       cpus: '0.1'
     healthcheck:
       test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 30s
@@ -138,14 +138,14 @@ services:
       - ./data/moodle:/bitnami/moodle
       - ./data/moodledata:/bitnami/moodledata
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.2'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 256M
+    #       cpus: '0.2'
+    #     reservations:
+    #       memory: 128M
+    #       cpus: '0.1'
     command: >
       bash -c "
         while true; do

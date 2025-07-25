@@ -4,3 +4,6 @@ nginx/html
 
 #moodle data
 data
+
+#env file
+.env
