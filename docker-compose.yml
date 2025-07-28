@@ -50,9 +50,6 @@ services:
       - PHP_MEMORY_LIMIT=256M
       - MOODLE_REVERSEPROXY=yes
       - MOODLE_SSLPROXY=yes
-      - MOODLE_REVERSEPROXY_HOST=lms.vasueataxacademy.com
-      - MOODLE_REVERSEPROXY_PORT=443
-      - MOODLE_REVERSEPROXY_SSL=yes
     volumes:
       - ./data/moodle:/bitnami/moodle
       - ./data/moodledata:/bitnami/moodledata
