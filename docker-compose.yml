@@ -50,7 +50,7 @@ services:
       - PHP_MEMORY_LIMIT=256M
       - MOODLE_REVERSEPROXY=yes
       - MOODLE_SSLPROXY=yes
-      - BITNAMI_DEBUG=true
+      - BITNAMI_DEBUG=false
     volumes:
       - ./data/moodle:/bitnami/moodle
       - ./data/moodledata:/bitnami/moodledata
