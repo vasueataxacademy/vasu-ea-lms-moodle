@@ -27,7 +27,7 @@ services:
       retries: 2
 
   moodle:
-    image: bitnami/moodle:4.3.2
+    build: .
     container_name: moodle
     depends_on:
       - mariadb
@@ -50,7 +50,7 @@ services:
       - PHP_MEMORY_LIMIT=256M
       - MOODLE_REVERSEPROXY=yes
       - MOODLE_SSLPROXY=yes
-      - BITNAMI_DEBUG=false
+      - BITNAMI_DEBUG=true
     volumes:
       - ./data/moodle:/bitnami/moodle
       - ./data/moodledata:/bitnami/moodledata
@@ -119,7 +119,7 @@ services:
       retries: 3
 
   moodlecron:
-    image: bitnami/moodle:4.3.2
+    build: .
     container_name: moodlecron
     depends_on:
       - mariadb
