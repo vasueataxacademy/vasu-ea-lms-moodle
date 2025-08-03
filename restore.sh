@@ -41,7 +41,7 @@ echo "Restoring database..."
 docker-compose up -d mariadb
 sleep 30  # Wait for MariaDB to start
 
-docker exec -i mariadb mysql \
+docker exec -i mariadb mariadb \
     -u root \
     -p${MARIADB_ROOT_PASSWORD} \
     ${MARIADB_DATABASE} < ${BACKUP_DIR}/${BACKUP_NAME}_database.sql

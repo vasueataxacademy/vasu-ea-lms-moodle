@@ -23,7 +23,7 @@ echo "Starting Moodle backup: ${BACKUP_NAME}"
 
 # 1. Database backup
 echo "Backing up database..."
-docker exec mariadb mysqldump \
+docker exec mariadb mariadb-dump \
     -u root \
     -p${MARIADB_ROOT_PASSWORD} \
     --single-transaction \
@@ -38,7 +38,7 @@ tar -czf ${BACKUP_DIR}/${BACKUP_NAME}_moodle.tar.gz \
 
 # 3. Redis backup (if needed)
 echo "Backing up Redis data..."
-docker exec redis redis-cli --rdb /tmp/dump.rdb
+docker exec redis redis-cli -a ${REDIS_PASSWORD} --rdb /tmp/dump.rdb
 docker cp redis:/tmp/dump.rdb ${BACKUP_DIR}/${BACKUP_NAME}_redis.rdb
 
 # 4. Configuration backup
