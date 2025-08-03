@@ -7,3 +7,6 @@ data
 
 #env file
 .env
+
+#backup folder
+backups
