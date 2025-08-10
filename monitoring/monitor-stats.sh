@@ -16,9 +16,31 @@ log_stats() {
     # Log system stats
     echo "[$timestamp] System Stats:" >> "$SCRIPT_DIR/logs/system-stats.log"
     echo "CPU Usage:" >> "$SCRIPT_DIR/logs/system-stats.log"
-    top -l 1 | grep "CPU usage" >> "$SCRIPT_DIR/logs/system-stats.log"
+    
+    # Cross-platform CPU usage
+    if command -v top >/dev/null 2>&1; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            top -l 1 | grep "CPU usage" >> "$SCRIPT_DIR/logs/system-stats.log" 2>/dev/null || echo "CPU info unavailable" >> "$SCRIPT_DIR/logs/system-stats.log"
+        else
+            # Linux
+            top -bn1 | grep "Cpu(s)" >> "$SCRIPT_DIR/logs/system-stats.log" 2>/dev/null || echo "CPU info unavailable" >> "$SCRIPT_DIR/logs/system-stats.log"
+        fi
+    else
+        echo "top command not available" >> "$SCRIPT_DIR/logs/system-stats.log"
+    fi
+    
     echo "Memory Usage:" >> "$SCRIPT_DIR/logs/system-stats.log"
-    vm_stat | head -5 >> "$SCRIPT_DIR/logs/system-stats.log"
+    
+    # Cross-platform memory usage
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        vm_stat | head -5 >> "$SCRIPT_DIR/logs/system-stats.log" 2>/dev/null || echo "Memory info unavailable" >> "$SCRIPT_DIR/logs/system-stats.log"
+    else
+        # Linux
+        free -h >> "$SCRIPT_DIR/logs/system-stats.log" 2>/dev/null || echo "Memory info unavailable" >> "$SCRIPT_DIR/logs/system-stats.log"
+    fi
+    
     echo "Disk Usage:" >> "$SCRIPT_DIR/logs/system-stats.log"
     df -h / >> "$SCRIPT_DIR/logs/system-stats.log"
     echo "" >> "$SCRIPT_DIR/logs/system-stats.log"
