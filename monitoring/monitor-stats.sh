@@ -4,14 +4,48 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$SCRIPT_DIR/logs"
 
+# Function to check Docker status
+check_docker_status() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "❌ Docker command not found"
+        return 1
+    fi
+    
+    if ! docker info >/dev/null 2>&1; then
+        echo "❌ Docker daemon not running or not accessible"
+        return 1
+    fi
+    
+    running_containers=$(docker ps --format "{{.Names}}" 2>/dev/null | wc -l)
+    total_containers=$(docker ps -a --format "{{.Names}}" 2>/dev/null | wc -l)
+    
+    echo "✅ Docker is running ($running_containers/$total_containers containers active)"
+    return 0
+}
+
 # Function to log system stats
 log_stats() {
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     # Log Docker container stats in CSV format for easy analysis
     echo "[$timestamp] Docker Container Stats:" >> "$SCRIPT_DIR/logs/container-stats.log"
-    docker stats --no-stream --format "{{.Container}},{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}},{{.NetIO}},{{.BlockIO}}" >> "$SCRIPT_DIR/logs/container-stats.log"
-    echo "" >> "$SCRIPT_DIR/logs/container-stats.log"
+    
+    # Check if Docker is running and accessible
+    if ! docker info >/dev/null 2>&1; then
+        echo "Docker daemon not running or not accessible" >> "$SCRIPT_DIR/logs/container-stats.log"
+        echo "" >> "$SCRIPT_DIR/logs/container-stats.log"
+    else
+        # Check if any containers are running
+        running_containers=$(docker ps --format "{{.Names}}" 2>/dev/null)
+        if [[ -z "$running_containers" ]]; then
+            echo "No Docker containers currently running" >> "$SCRIPT_DIR/logs/container-stats.log"
+            echo "" >> "$SCRIPT_DIR/logs/container-stats.log"
+        else
+            # Get stats for running containers
+            docker stats --no-stream --format "{{.Container}},{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}},{{.NetIO}},{{.BlockIO}}" >> "$SCRIPT_DIR/logs/container-stats.log" 2>/dev/null || echo "Failed to collect container stats" >> "$SCRIPT_DIR/logs/container-stats.log"
+            echo "" >> "$SCRIPT_DIR/logs/container-stats.log"
+        fi
+    fi
     
     # Log system stats
     echo "[$timestamp] System Stats:" >> "$SCRIPT_DIR/logs/system-stats.log"
@@ -55,10 +89,21 @@ log_stats() {
     
     # Extract key metrics for CSV summary
     time_only=$(date '+%H:%M:%S')
-    moodle_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" moodle 2>/dev/null || echo "0%,0%")
-    mariadb_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" mariadb 2>/dev/null || echo "0%,0%")
-    redis_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" redis 2>/dev/null || echo "0%,0%")
-    nginx_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" nginx 2>/dev/null || echo "0%,0%")
+    
+    # Check if Docker is accessible before collecting container stats
+    if docker info >/dev/null 2>&1; then
+        # Get stats for each container, with fallback for missing containers
+        moodle_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" moodle 2>/dev/null || echo "N/A,N/A")
+        mariadb_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" mariadb 2>/dev/null || echo "N/A,N/A")
+        redis_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" redis 2>/dev/null || echo "N/A,N/A")
+        nginx_stats=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemPerc}}" nginx 2>/dev/null || echo "N/A,N/A")
+    else
+        # Docker not accessible - mark all as unavailable
+        moodle_stats="DOCKER_DOWN,DOCKER_DOWN"
+        mariadb_stats="DOCKER_DOWN,DOCKER_DOWN"
+        redis_stats="DOCKER_DOWN,DOCKER_DOWN"
+        nginx_stats="DOCKER_DOWN,DOCKER_DOWN"
+    fi
     
     echo "${date_only},${time_only},${moodle_stats},${mariadb_stats},${redis_stats},${nginx_stats}" >> "$summary_file"
 }
@@ -185,8 +230,12 @@ cleanup_old_data() {
 # Main script logic
 case "${1:-run}" in
     "run")
+        echo "=== Monitoring Status ==="
+        check_docker_status
+        echo ""
+        
         log_stats
-        echo "Stats logged to monitoring/logs/ directory"
+        echo "📊 Stats logged to monitoring/logs/ directory"
         echo ""
         echo "Available commands:"
         echo "  ./monitor-stats.sh show    - Show recent stats"
@@ -205,16 +254,125 @@ case "${1:-run}" in
         ;;
     "setup")
         echo "Setting up automated logging..."
-        echo "Add this line to your crontab (crontab -e):"
-        echo "*/5 * * * * $(pwd)/monitor-stats.sh run"
         echo ""
-        echo "For automated cleanup, also add:"
-        echo "0 2 * * 0 $(pwd)/monitor-stats.sh cleanup"
+        
+        # Check if crontab is available
+        if command -v crontab >/dev/null 2>&1; then
+            echo "✅ Crontab is available. Add these lines to your crontab (crontab -e):"
+            echo "*/5 * * * * $(pwd)/monitoring/monitor-stats.sh run"
+            echo "0 2 * * 0 $(pwd)/monitoring/monitor-stats.sh cleanup"
+            echo ""
+            echo "Or run this command to add both automatically:"
+            echo "(crontab -l 2>/dev/null; echo \"*/5 * * * * $(pwd)/monitoring/monitor-stats.sh run\"; echo \"0 2 * * 0 $(pwd)/monitoring/monitor-stats.sh cleanup\") | crontab -"
+        else
+            echo "❌ Crontab not available. Alternative setup options:"
+            echo ""
+            echo "1. Install cron (recommended):"
+            echo "   Run: ./monitoring/install-cron.sh"
+            echo ""
+            echo "2. Use systemd timer (modern Linux alternative):"
+            echo "   Run: ./monitoring/monitor-stats.sh systemd-setup"
+            echo ""
+            echo "3. Simple monitoring service:"
+            echo "   Run: ./monitoring/start-monitoring.sh start"
+            echo "   (Managed background service with start/stop/status)"
+            echo ""
+            echo "4. Manual background loop:"
+            echo "   Run: ./monitoring/monitor-stats.sh loop &"
+            echo "   (Simple continuous loop)"
+        fi
+        ;;
+    "systemd-setup")
+        echo "Setting up systemd timer for monitoring..."
         echo ""
-        echo "Or run this command to add both automatically:"
-        echo "(crontab -l 2>/dev/null; echo \"*/5 * * * * $(pwd)/monitor-stats.sh run\"; echo \"0 2 * * 0 $(pwd)/monitor-stats.sh cleanup\") | crontab -"
+        echo "1. Create systemd service file:"
+        echo "sudo tee /etc/systemd/system/moodle-monitor.service > /dev/null <<EOF"
+        echo "[Unit]"
+        echo "Description=Moodle Resource Monitor"
+        echo "After=docker.service"
+        echo ""
+        echo "[Service]"
+        echo "Type=oneshot"
+        echo "ExecStart=$(pwd)/monitoring/monitor-stats.sh run"
+        echo "User=$(whoami)"
+        echo "WorkingDirectory=$(pwd)"
+        echo "EOF"
+        echo ""
+        echo "2. Create systemd timer file:"
+        echo "sudo tee /etc/systemd/system/moodle-monitor.timer > /dev/null <<EOF"
+        echo "[Unit]"
+        echo "Description=Run Moodle Monitor every 5 minutes"
+        echo "Requires=moodle-monitor.service"
+        echo ""
+        echo "[Timer]"
+        echo "OnCalendar=*:0/5"
+        echo "Persistent=true"
+        echo ""
+        echo "[Install]"
+        echo "WantedBy=timers.target"
+        echo "EOF"
+        echo ""
+        echo "3. Enable and start the timer:"
+        echo "sudo systemctl daemon-reload"
+        echo "sudo systemctl enable moodle-monitor.timer"
+        echo "sudo systemctl start moodle-monitor.timer"
+        echo ""
+        echo "4. Check status:"
+        echo "sudo systemctl status moodle-monitor.timer"
+        ;;
+    "status")
+        echo "=== System Monitoring Status ==="
+        echo ""
+        check_docker_status
+        echo ""
+        
+        echo "📁 Log Files:"
+        if [[ -f "$SCRIPT_DIR/logs/container-stats.log" ]]; then
+            echo "  ✅ Container stats: $(wc -l < "$SCRIPT_DIR/logs/container-stats.log") lines"
+        else
+            echo "  ❌ No container stats log found"
+        fi
+        
+        if [[ -f "$SCRIPT_DIR/logs/system-stats.log" ]]; then
+            echo "  ✅ System stats: $(wc -l < "$SCRIPT_DIR/logs/system-stats.log") lines"
+        else
+            echo "  ❌ No system stats log found"
+        fi
+        
+        echo ""
+        echo "📊 Daily Summaries:"
+        summary_count=$(ls "$SCRIPT_DIR/logs/daily-summary-"*.log 2>/dev/null | wc -l)
+        if [[ $summary_count -gt 0 ]]; then
+            echo "  ✅ $summary_count daily summary files found"
+            echo "  📅 Latest: $(ls -t "$SCRIPT_DIR/logs/daily-summary-"*.log 2>/dev/null | head -1 | xargs basename)"
+        else
+            echo "  ❌ No daily summary files found"
+        fi
+        ;;
+    "loop")
+        echo "Starting continuous monitoring loop (every 5 minutes)..."
+        echo "Press Ctrl+C to stop, or run in background with: $0 loop &"
+        echo ""
+        while true; do
+            echo "=== $(date) ==="
+            check_docker_status
+            log_stats
+            echo "📊 Stats logged. Next run in 5 minutes..."
+            echo ""
+            sleep 300  # 5 minutes
+        done
         ;;
     *)
-        echo "Usage: $0 [run|show|analyze|cleanup|setup]"
+        echo "Usage: $0 [run|show|analyze|cleanup|setup|systemd-setup|status|loop]"
+        echo ""
+        echo "Commands:"
+        echo "  run           - Log current stats once"
+        echo "  show          - Show recent stats"
+        echo "  analyze       - Analyze trends"
+        echo "  cleanup       - Delete data older than 2 weeks"
+        echo "  setup         - Show automated setup options"
+        echo "  systemd-setup - Generate systemd timer setup commands"
+        echo "  status        - Check monitoring and Docker status"
+        echo "  loop          - Run continuous monitoring loop"
         ;;
 esac

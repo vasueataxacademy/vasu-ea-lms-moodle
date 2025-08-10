@@ -303,11 +303,15 @@ ls -la backups/
 
 ### Automated Resource Monitoring
 
-This setup includes comprehensive monitoring scripts to track system performance:
+This setup includes comprehensive monitoring scripts with robust error handling and multiple deployment options:
 
+#### **Quick Start**
 ```bash
 # Quick setup - run once
 ./monitoring/setup-monitoring.sh
+
+# Check system and Docker status
+./monitoring/monitor-stats.sh status
 
 # Manual monitoring commands
 ./monitoring/monitor-stats.sh run      # Log current stats
@@ -322,29 +326,167 @@ This setup includes comprehensive monitoring scripts to track system performance
 ./monitoring/analyze-logs.sh report    # Generate full daily report
 ```
 
-**Automated Setup (Recommended):**
-```bash
-# Set up automated monitoring (every 5 minutes) and weekly cleanup
-./monitoring/monitor-stats.sh setup
+#### **Automated Setup Options**
 
-# Or manually add to crontab:
-*/5 * * * * /path/to/project/monitoring/monitor-stats.sh run
-0 2 * * 0 /path/to/project/monitoring/monitor-stats.sh cleanup
+**Option 1: Install Cron (Recommended)**
+```bash
+# Install cron automatically (supports Ubuntu/Debian/RHEL/Alpine)
+./monitoring/install-cron.sh
+
+# Set up automated monitoring
+./monitoring/monitor-stats.sh setup
 ```
 
-**Monitoring Features:**
-- **Resource Tracking**: CPU, memory, disk usage for all containers
-- **CSV Export**: Daily summaries for spreadsheet analysis
-- **Automated Cleanup**: Removes data older than 2 weeks
-- **Alert System**: Identifies memory usage >80%
-- **Trend Analysis**: Shows peak usage times and patterns
-- **Low Overhead**: ~5MB RAM, minimal CPU usage
+**Option 2: Simple Service Management**
+```bash
+# Start monitoring service (no root required)
+./monitoring/start-monitoring.sh start
+
+# Check service status
+./monitoring/start-monitoring.sh status
+
+# View service logs
+./monitoring/start-monitoring.sh logs
+
+# Stop service
+./monitoring/start-monitoring.sh stop
+```
+
+**Option 3: Systemd Timer (Modern Linux)**
+```bash
+# Generate systemd setup commands
+./monitoring/monitor-stats.sh systemd-setup
+
+# Follow the displayed commands to set up systemd timer
+```
+
+**Option 4: Background Loop**
+```bash
+# Run continuous monitoring in background
+./monitoring/monitor-stats.sh loop &
+
+# Or run in foreground (Ctrl+C to stop)
+./monitoring/monitor-stats.sh loop
+```
+
+#### **Monitoring Features**
+
+**Core Capabilities:**
+- **Resource Tracking**: CPU, memory, disk usage for all containers and system
+- **CSV Export**: Daily summaries for spreadsheet analysis and graphing
+- **Automated Cleanup**: Removes data older than 2 weeks automatically
+- **Alert System**: Identifies memory usage >80% and performance issues
+- **Trend Analysis**: Shows peak usage times and resource patterns
+- **Cross-Platform**: Works on macOS and Linux with automatic detection
+
+**Robust Error Handling:**
+- **Docker Down Detection**: Gracefully handles when Docker daemon is stopped
+- **Container Missing**: Tracks individual container availability
+- **Service Downtime**: Records downtime periods for uptime analysis
+- **System Resilience**: Continues monitoring system resources even when Docker is down
+- **Clear Status Reporting**: Visual indicators for all service states
+
+**Low Resource Usage:**
+- **Memory**: ~5MB RAM usage
+- **CPU**: Minimal impact (<1% CPU)
+- **Storage**: ~10MB per month with automatic cleanup
+- **Network**: No external dependencies
+
+#### **Log Files and Data**
 
 **Log Files Location:**
-- `monitoring/logs/container-stats.log` - Detailed container statistics
-- `monitoring/logs/system-stats.log` - System resource usage
-- `monitoring/logs/daily-summary-*.log` - CSV format for analysis
+- `monitoring/logs/container-stats.log` - Detailed container statistics with timestamps
+- `monitoring/logs/system-stats.log` - System resource usage (CPU, memory, disk)
+- `monitoring/logs/daily-summary-*.log` - CSV format for analysis and graphing
 - `monitoring/logs/daily-report.txt` - Generated analysis reports
+- `monitoring/logs/monitoring-service.log` - Service management logs
+
+**CSV Data Format:**
+```csv
+Date,Time,Moodle_CPU,Moodle_Memory,MariaDB_CPU,MariaDB_Memory,Redis_CPU,Redis_Memory,Nginx_CPU,Nginx_Memory
+2025-01-15,14:30:00,15.2%,45.8%,8.1%,32.4%,2.3%,12.1%,1.2%,8.5%
+2025-01-15,14:35:00,DOCKER_DOWN,DOCKER_DOWN,DOCKER_DOWN,DOCKER_DOWN,DOCKER_DOWN,DOCKER_DOWN,DOCKER_DOWN,DOCKER_DOWN
+2025-01-15,14:40:00,12.8%,43.2%,N/A,N/A,2.1%,11.8%,1.1%,8.2%
+```
+
+**Data States:**
+- **Normal Values**: CPU/Memory percentages when containers are running
+- **DOCKER_DOWN**: When Docker daemon is not accessible
+- **N/A**: When specific containers are stopped but Docker is running
+
+#### **Monitoring Commands Reference**
+
+```bash
+# Status and diagnostics
+./monitoring/monitor-stats.sh status        # Check system status
+./monitoring/monitor-stats.sh run           # Single monitoring run
+./monitoring/monitor-stats.sh show          # Recent stats summary
+
+# Analysis and reporting
+./monitoring/monitor-stats.sh analyze       # Trend analysis
+./monitoring/analyze-logs.sh graph          # Usage graphs
+./monitoring/analyze-logs.sh alerts         # Memory alerts (>80%)
+./monitoring/analyze-logs.sh peaks          # Peak usage analysis
+./monitoring/analyze-logs.sh report         # Full daily report
+
+# Maintenance
+./monitoring/monitor-stats.sh cleanup       # Remove data >2 weeks old
+./monitoring/monitor-stats.sh setup         # Show setup options
+
+# Service management (if using simple service)
+./monitoring/start-monitoring.sh start      # Start background service
+./monitoring/start-monitoring.sh stop       # Stop background service
+./monitoring/start-monitoring.sh restart    # Restart service
+./monitoring/start-monitoring.sh status     # Service status
+./monitoring/start-monitoring.sh logs       # Follow service logs
+```
+
+#### **Troubleshooting Monitoring**
+
+**Common Issues:**
+
+**Crontab not available:**
+```bash
+# Install cron
+./monitoring/install-cron.sh
+
+# Or use alternative service
+./monitoring/start-monitoring.sh start
+```
+
+**Docker permission issues:**
+```bash
+# Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Or run monitoring as root (not recommended)
+sudo ./monitoring/monitor-stats.sh run
+```
+
+**High memory usage alerts:**
+```bash
+# Check current container usage
+docker stats --no-stream
+
+# View memory alerts
+./monitoring/analyze-logs.sh alerts
+
+# Check system memory
+free -h
+```
+
+**Missing log data:**
+```bash
+# Check monitoring status
+./monitoring/monitor-stats.sh status
+
+# Verify service is running
+./monitoring/start-monitoring.sh status
+
+# Check for errors
+tail -f monitoring/logs/monitoring-service.log
+```
 
 ### Health Checks
 ```bash
