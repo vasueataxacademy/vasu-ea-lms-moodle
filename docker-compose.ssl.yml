@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+      - ./nginx/html:/usr/share/nginx/html
+    entrypoint: ""  # Keeps it from auto-running
+    profiles:
+      - ssl
+    networks:
+      - default
+
+networks:
+  default:
+    name: moodle_default
+    external: true

@@ -28,7 +28,10 @@ Internet → Nginx (SSL/Reverse Proxy) → Moodle → MariaDB
 ```
 /
 ├── docker-compose.yml      ← Main Docker configuration
+├── docker-compose.ssl.yml  ← SSL certificate management
 ├── .env.example           ← Environment variables template
+├── ssl-setup.sh           ← SSL certificate setup helper
+├── ssl-renew.sh           ← SSL certificate renewal helper
 ├── backup.sh              ← Automated backup script
 ├── restore.sh             ← Restore script
 ├── README.md
@@ -36,6 +39,13 @@ Internet → Nginx (SSL/Reverse Proxy) → Moodle → MariaDB
 │   ├── nginx.conf         ← Nginx configuration
 │   ├── ssl/               ← SSL certificates
 │   └── html/              ← Static files
+├── monitoring/            ← Resource monitoring scripts
+│   ├── monitor-stats.sh   ← Main monitoring script
+│   ├── analyze-logs.sh    ← Log analysis tools
+│   ├── setup-monitoring.sh ← Quick setup script
+│   ├── start-monitoring.sh ← Service management
+│   ├── install-cron.sh    ← Cron installation
+│   └── logs/              ← Generated log files
 └── data/
     ├── moodle/            ← Moodle app files
     ├── moodledata/        ← Uploaded files, sessions
@@ -169,6 +179,19 @@ docker stats mariadb --no-stream
 
 ## 🔒 SSL/HTTPS Setup
 
+### SSL Management Structure
+
+SSL certificate management is now separated into its own Docker Compose file for better organization:
+
+- **Main services**: `docker-compose.yml` (Moodle, MariaDB, Redis, Nginx)
+- **SSL management**: `docker-compose.ssl.yml` (Certbot for certificate operations)
+
+This separation provides:
+- **Cleaner main setup**: Core services aren't cluttered with SSL tooling
+- **On-demand SSL operations**: Certbot only runs when needed
+- **Better resource management**: SSL tools don't consume resources during normal operation
+- **Easier maintenance**: SSL operations are isolated and easier to troubleshoot
+
 ### Certificate Type Comparison
 
 | Feature | Wildcard (`*.yourdomain.com`) | Subdomain-Specific (`sub.yourdomain.com`) |
@@ -187,12 +210,9 @@ docker stats mariadb --no-stream
 # Stop nginx temporarily
 docker-compose stop nginx
 
-# Get subdomain certificate (HTTP validation)
-docker run --rm \
-  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
-  -v $(pwd)/nginx/html:/usr/share/nginx/html \
-  certbot/certbot certonly \
-  --webroot -w /usr/share/nginx/html \
+# Get subdomain certificate using separate SSL compose file
+docker-compose -f docker-compose.ssl.yml run --rm certbot \
+  certonly --webroot -w /usr/share/nginx/html \
   -d subdomain.yourdomain.com \
   --non-interactive \
   --agree-tos \
@@ -211,12 +231,9 @@ ssl_certificate_key /etc/letsencrypt/live/subdomain.yourdomain.com/privkey.pem;
 **Renewal (Automated):**
 ```bash
 # Add to crontab -e
-0 3 * * 0 docker run --rm \
-  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
-  -v $(pwd)/nginx/html:/usr/share/nginx/html \
-  certbot/certbot renew \
-  --webroot -w /usr/share/nginx/html \
-  --email youremail@yourdomain.com && \
+0 3 * * 0 cd /path/to/project && \
+  docker-compose -f docker-compose.ssl.yml run --rm certbot \
+  renew --webroot -w /usr/share/nginx/html && \
   docker-compose restart nginx
 ```
 
@@ -227,11 +244,9 @@ ssl_certificate_key /etc/letsencrypt/live/subdomain.yourdomain.com/privkey.pem;
 # Stop nginx temporarily
 docker-compose stop nginx
 
-# Get wildcard certificate (requires DNS validation)
-docker run --rm -it \
-  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
-  certbot/certbot certonly \
-  --manual \
+# Get wildcard certificate using separate SSL compose file
+docker-compose -f docker-compose.ssl.yml run --rm -it certbot \
+  certonly --manual \
   --preferred-challenges dns \
   -d "*.yourdomain.com" \
   --agree-tos \
@@ -260,17 +275,42 @@ ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
 ```bash
 # Set calendar reminder every 2 months
 docker-compose stop nginx
-docker run --rm -it \
-  -v $(pwd)/nginx/ssl:/etc/letsencrypt \
-  certbot/certbot renew \
-  --manual \
-  --preferred-challenges dns
+docker-compose -f docker-compose.ssl.yml run --rm -it certbot \
+  renew --manual --preferred-challenges dns
 docker-compose start nginx
 ```
 
+### SSL Helper Scripts (Recommended)
+
+For easier SSL management, use the provided helper scripts:
+
+**Initial Setup:**
+```bash
+# Subdomain certificate (automated)
+./ssl-setup.sh subdomain.yourdomain.com
+
+# Wildcard certificate (manual DNS validation)
+./ssl-setup.sh '*.yourdomain.com' admin@yourdomain.com
+```
+
+**Certificate Renewal:**
+```bash
+# Automatic renewal (subdomain certificates)
+./ssl-renew.sh
+
+# Manual renewal (wildcard certificates)
+./ssl-renew.sh --manual
+```
+
+**Certificate Status:**
+```bash
+# Check certificate status and expiry
+docker-compose -f docker-compose.ssl.yml run --rm certbot certificates
+```
+
 ### Recommendation for Non API available DNS (E.g. Namecheap) Users:
-- **Single subdomain**: Use Option 2 (subdomain-specific) for automated renewal
-- **Multiple subdomains**: Use Option 1 (wildcard) but accept manual renewal process
+- **Single subdomain**: Use subdomain-specific certificates for automated renewal
+- **Multiple subdomains**: Use wildcard certificates but accept manual renewal process
 - **Production**: Consider transferring DNS to Cloudflare for wildcard automation
 
 ## 💾 Backup & Restore
@@ -647,6 +687,69 @@ docker exec -it moodlecron /opt/bitnami/php/bin/php /bitnami/moodle/admin/cli/cr
 - **Database**: `docker-compose logs mariadb`
 - **Nginx**: `docker-compose logs nginx`
 - **Redis**: `docker-compose logs redis`
+
+## 🔐 SSL Management Quick Reference
+
+### Common SSL Operations
+
+```bash
+# Initial certificate setup
+./ssl-setup.sh your-domain.com                    # Subdomain certificate
+./ssl-setup.sh '*.your-domain.com'               # Wildcard certificate
+
+# Certificate renewal
+./ssl-renew.sh                                    # Automatic renewal
+./ssl-renew.sh --manual                          # Manual renewal (wildcard)
+
+# Certificate status and information
+docker-compose -f docker-compose.ssl.yml run --rm certbot certificates
+
+# Test certificate expiry
+docker-compose -f docker-compose.ssl.yml run --rm certbot \
+  certificates | grep -A 2 "Certificate Name"
+
+# Force certificate renewal (if needed)
+docker-compose -f docker-compose.ssl.yml run --rm certbot \
+  renew --force-renewal
+```
+
+### Automated Renewal Setup
+
+**For subdomain certificates (recommended):**
+```bash
+# Add to crontab -e
+0 3 * * 0 cd /path/to/project && ./ssl-renew.sh
+```
+
+**For wildcard certificates:**
+```bash
+# Set calendar reminder every 2 months to run:
+./ssl-renew.sh --manual
+```
+
+### SSL Troubleshooting
+
+**Certificate not working:**
+```bash
+# Check certificate files exist
+ls -la nginx/ssl/live/your-domain.com/
+
+# Check nginx configuration
+docker-compose logs nginx
+
+# Test SSL configuration
+openssl s_client -connect your-domain.com:443 -servername your-domain.com
+```
+
+**Renewal failures:**
+```bash
+# Check certbot logs
+docker-compose -f docker-compose.ssl.yml run --rm certbot \
+  --dry-run renew
+
+# Manual certificate check
+./ssl-renew.sh --manual
+```
 
 ## 🔄 Updates & Upgrades
 

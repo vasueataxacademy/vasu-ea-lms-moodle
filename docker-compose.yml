@@ -167,10 +167,4 @@ services:
       timeout: 30s
       retries: 2
 
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./nginx/ssl:/etc/letsencrypt
-      - ./nginx/html:/usr/share/nginx/html
-    entrypoint: ""  # Keeps it from auto-running
+
