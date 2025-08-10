@@ -114,6 +114,51 @@ docker-compose ps
 | MoodleCron  | 0.2 vCPU  | 256MB       | Scheduled tasks |
 | Nginx       | 0.1 vCPU  | 64MB        | Reverse proxy |
 
+## 🗄️ MariaDB Low RAM Configuration
+
+This setup includes a custom MariaDB configuration optimized for low RAM instances (`mariadb/custom-low-optimised.cnf`). This configuration is automatically applied to reduce memory usage while maintaining acceptable performance.
+
+### Key Optimizations
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `innodb_buffer_pool_size` | 64M | Reduced from default ~128M for low RAM |
+| `max_connections` | 50 | Limited concurrent connections |
+| `tmp_table_size` | 16M | Smaller temporary tables |
+| `max_heap_table_size` | 16M | Reduced memory table size |
+| `query_cache_type` | 0 | Disabled to save memory |
+| `innodb_log_buffer_size` | 8M | Smaller log buffer |
+
+### Memory Usage Impact
+- **Standard MariaDB**: ~200-300MB baseline memory
+- **Low RAM Config**: ~80-120MB baseline memory
+- **Trade-off**: Slightly reduced performance for significantly lower memory usage
+
+### When to Use
+- Instances with ≤2GB RAM
+- Development/testing environments
+- Small user bases (<100 concurrent users)
+- Budget-conscious deployments
+
+### Monitoring Performance
+```bash
+# Check MariaDB memory usage (using environment variable)
+docker exec -it mariadb mysql -u root -p${MARIADB_ROOT_PASSWORD} -e "
+  SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total';
+  SHOW STATUS LIKE 'Threads_connected';
+  SHOW STATUS LIKE 'Created_tmp_disk_tables';
+"
+
+# Alternative: Interactive session (will prompt for password)
+docker exec -it mariadb mysql -u root -p
+
+# Monitor slow queries
+docker exec -it mariadb tail -f /bitnami/mariadb/slow.log
+
+# Check overall container resource usage
+docker stats mariadb --no-stream
+```
+
 ## 🔒 SSL/HTTPS Setup
 
 ### Certificate Type Comparison
