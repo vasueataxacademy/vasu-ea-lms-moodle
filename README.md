@@ -330,12 +330,20 @@ This setup includes comprehensive monitoring scripts with robust error handling 
 
 **Option 1: Install Cron (Recommended)**
 ```bash
-# Install cron automatically (supports Ubuntu/Debian/RHEL/Alpine)
+# Install cron automatically (supports multiple Linux distributions)
 ./monitoring/install-cron.sh
 
 # Set up automated monitoring
 ./monitoring/monitor-stats.sh setup
 ```
+
+**Supported Linux Distributions:**
+- Ubuntu/Debian
+- Amazon Linux 2 & 2023
+- RHEL/CentOS/Fedora
+- Rocky Linux/AlmaLinux
+- Alpine Linux
+- Arch Linux
 
 **Option 2: Simple Service Management**
 ```bash
