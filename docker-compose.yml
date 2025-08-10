@@ -81,6 +81,7 @@ services:
       - MARIADB_COLLATE=utf8mb4_unicode_ci
     volumes:
       - ./data/mariadb:/bitnami/mariadb
+      - ./mariadb/custom-low-optimised.cnf:/opt/bitnami/mariadb/conf/my_custom.cnf:ro
     restart: always
     # deploy:
     #   resources:

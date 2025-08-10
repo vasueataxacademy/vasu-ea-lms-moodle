@@ -10,3 +10,6 @@ data
 
 #backup folder
 backups
+
+#testing folder
+testing/
