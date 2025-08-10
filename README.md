@@ -87,10 +87,18 @@ docker-compose logs -f moodle
 ```
 
 *** Final config.php in Moodle container ***
-Make sure Moodle is aware it's behind SSL:
-```
+Make sure Moodle is aware it's behind SSL and can detect real client IPs:
+```php
 $CFG->wwwroot = 'https://yourdomain.com';
 $CFG->sslproxy = true;
+
+// Force real IP detection - ADD THIS HERE
+if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+    $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+    $_SERVER['REMOTE_ADDR'] = trim($ips[0]);
+} elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+    $_SERVER['REMOTE_ADDR'] = $_SERVER['HTTP_X_REAL_IP'];
+}
 ```
 
 ### 4. Setup SSL Certificate
