@@ -320,10 +320,11 @@ This setup includes comprehensive monitoring scripts with robust error handling 
 ./monitoring/monitor-stats.sh cleanup  # Clean old data (>2 weeks)
 
 # Log analysis
-./monitoring/analyze-logs.sh graph     # Show usage graphs
-./monitoring/analyze-logs.sh alerts    # Check for high usage alerts
-./monitoring/analyze-logs.sh peaks     # Show peak usage times
-./monitoring/analyze-logs.sh report    # Generate full daily report
+./monitoring/analyze-logs.sh overview  # Resource summary with CPU & RAM averages/peaks
+./monitoring/analyze-logs.sh graph     # Detailed CPU & RAM usage tables over time
+./monitoring/analyze-logs.sh alerts    # High resource usage alerts (CPU >90%, RAM >80%)
+./monitoring/analyze-logs.sh peaks     # Peak usage analysis by service
+./monitoring/analyze-logs.sh report    # Generate comprehensive daily report
 ```
 
 #### **Automated Setup Options**
@@ -383,8 +384,9 @@ This setup includes comprehensive monitoring scripts with robust error handling 
 - **Resource Tracking**: CPU, memory, disk usage for all containers and system
 - **CSV Export**: Daily summaries for spreadsheet analysis and graphing
 - **Automated Cleanup**: Removes data older than 2 weeks automatically
-- **Alert System**: Identifies memory usage >80% and performance issues
-- **Trend Analysis**: Shows peak usage times and resource patterns
+- **Alert System**: Identifies high CPU usage (>90%) and memory usage (>80%)
+- **Trend Analysis**: Shows peak usage times, averages, and resource patterns
+- **Comprehensive Analysis**: Side-by-side CPU and RAM usage tables
 - **Cross-Platform**: Works on macOS and Linux with automatic detection
 
 **Robust Error Handling:**
@@ -422,6 +424,43 @@ Date,Time,Moodle_CPU,Moodle_Memory,MariaDB_CPU,MariaDB_Memory,Redis_CPU,Redis_Me
 - **DOCKER_DOWN**: When Docker daemon is not accessible
 - **N/A**: When specific containers are stopped but Docker is running
 
+#### **Enhanced Analysis Features**
+
+**Resource Overview (Quick Summary):**
+```bash
+./monitoring/analyze-logs.sh overview
+```
+Shows average and peak CPU/RAM usage per service in a clean table format:
+```
+Service  | Avg CPU | Avg RAM | Peak CPU | Peak RAM
+---------|---------|---------|----------|----------
+Moodle   |   15.2% |   45.8% |    28.5% |    67.2%
+MariaDB  |    8.1% |   32.4% |    15.3% |    48.9%
+Redis    |    2.3% |   12.1% |     4.7% |    18.5%
+Nginx    |    1.2% |    8.5% |     2.8% |    12.3%
+```
+
+**Detailed Usage Tables:**
+```bash
+./monitoring/analyze-logs.sh graph
+```
+Shows time-based CPU and RAM usage tables for the last 24 hours.
+
+**Performance Alerts:**
+```bash
+./monitoring/analyze-logs.sh alerts
+```
+Identifies services with high resource usage:
+- 🚨 High Memory Usage (>80%)
+- 🔥 High CPU Usage (>90%)
+- ✅ Clear status when no issues found
+
+**Peak Analysis:**
+```bash
+./monitoring/analyze-logs.sh peaks
+```
+Shows top 3 CPU and RAM peaks with timestamps and services.
+
 #### **Monitoring Commands Reference**
 
 ```bash
@@ -431,11 +470,12 @@ Date,Time,Moodle_CPU,Moodle_Memory,MariaDB_CPU,MariaDB_Memory,Redis_CPU,Redis_Me
 ./monitoring/monitor-stats.sh show          # Recent stats summary
 
 # Analysis and reporting
-./monitoring/monitor-stats.sh analyze       # Trend analysis
-./monitoring/analyze-logs.sh graph          # Usage graphs
-./monitoring/analyze-logs.sh alerts         # Memory alerts (>80%)
-./monitoring/analyze-logs.sh peaks          # Peak usage analysis
-./monitoring/analyze-logs.sh report         # Full daily report
+./monitoring/monitor-stats.sh analyze       # Basic trend analysis
+./monitoring/analyze-logs.sh overview       # Resource summary (CPU & RAM averages/peaks)
+./monitoring/analyze-logs.sh graph          # Detailed CPU & RAM usage tables
+./monitoring/analyze-logs.sh alerts         # High usage alerts (CPU >90%, RAM >80%)
+./monitoring/analyze-logs.sh peaks          # Peak usage analysis by service
+./monitoring/analyze-logs.sh report         # Comprehensive daily report
 
 # Maintenance
 ./monitoring/monitor-stats.sh cleanup       # Remove data >2 weeks old
@@ -472,13 +512,19 @@ newgrp docker
 sudo ./monitoring/monitor-stats.sh run
 ```
 
-**High memory usage alerts:**
+**High resource usage alerts:**
 ```bash
+# Quick resource overview
+./monitoring/analyze-logs.sh overview
+
+# Check for performance alerts
+./monitoring/analyze-logs.sh alerts
+
+# View peak usage times
+./monitoring/analyze-logs.sh peaks
+
 # Check current container usage
 docker stats --no-stream
-
-# View memory alerts
-./monitoring/analyze-logs.sh alerts
 
 # Check system memory
 free -h
