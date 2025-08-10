@@ -301,6 +301,51 @@ ls -la backups/
 
 ## 📊 Monitoring & Maintenance
 
+### Automated Resource Monitoring
+
+This setup includes comprehensive monitoring scripts to track system performance:
+
+```bash
+# Quick setup - run once
+./monitoring/setup-monitoring.sh
+
+# Manual monitoring commands
+./monitoring/monitor-stats.sh run      # Log current stats
+./monitoring/monitor-stats.sh show     # Show recent data
+./monitoring/monitor-stats.sh analyze  # Analyze trends
+./monitoring/monitor-stats.sh cleanup  # Clean old data (>2 weeks)
+
+# Log analysis
+./monitoring/analyze-logs.sh graph     # Show usage graphs
+./monitoring/analyze-logs.sh alerts    # Check for high usage alerts
+./monitoring/analyze-logs.sh peaks     # Show peak usage times
+./monitoring/analyze-logs.sh report    # Generate full daily report
+```
+
+**Automated Setup (Recommended):**
+```bash
+# Set up automated monitoring (every 5 minutes) and weekly cleanup
+./monitoring/monitor-stats.sh setup
+
+# Or manually add to crontab:
+*/5 * * * * /path/to/project/monitoring/monitor-stats.sh run
+0 2 * * 0 /path/to/project/monitoring/monitor-stats.sh cleanup
+```
+
+**Monitoring Features:**
+- **Resource Tracking**: CPU, memory, disk usage for all containers
+- **CSV Export**: Daily summaries for spreadsheet analysis
+- **Automated Cleanup**: Removes data older than 2 weeks
+- **Alert System**: Identifies memory usage >80%
+- **Trend Analysis**: Shows peak usage times and patterns
+- **Low Overhead**: ~5MB RAM, minimal CPU usage
+
+**Log Files Location:**
+- `monitoring/logs/container-stats.log` - Detailed container statistics
+- `monitoring/logs/system-stats.log` - System resource usage
+- `monitoring/logs/daily-summary-*.log` - CSV format for analysis
+- `monitoring/logs/daily-report.txt` - Generated analysis reports
+
 ### Health Checks
 ```bash
 # Check container health

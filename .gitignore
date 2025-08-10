@@ -13,3 +13,6 @@ backups
 
 #testing folder
 testing/
+
+#monitoring logs
+monitoring/logs/
