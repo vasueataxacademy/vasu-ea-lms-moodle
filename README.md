@@ -172,7 +172,7 @@ Custom PHP-FPM pool configuration (`php/php-fpm.conf`) optimizes worker processe
 | `pm` | static | Fixed number of workers (predictable memory) |
 | `pm.max_children` | 3 | **Ultra-minimal** worker processes for extreme low RAM |
 | `pm.max_requests` | 350 | **Increased** restart threshold (better performance) |
-| `listen.backlog` | 200 | **Increased** connection queue limit |
+| `listen.backlog` | 84 | **Optimized** connection queue limit |
 | `memory_limit` | 192M | **Reduced** per-process memory limit |
 
 **Redis Settings:**
@@ -193,7 +193,7 @@ Custom PHP-FPM pool configuration (`php/php-fpm.conf`) optimizes worker processe
 ### When to Use
 - **Instances with ≤1.5GB RAM**
 - Development/testing environments
-- **Small user bases (<8 concurrent users with bursts up to 15)**
+- **Small user bases (<8 concurrent users with bursts up to 12)**
 - Budget-conscious deployments
 - Single-tenant Moodle installations
 - **Ultra minimal RAM environments (1GB instances)**
@@ -207,8 +207,8 @@ Custom PHP-FPM pool configuration (`php/php-fpm.conf`) optimizes worker processe
 - 3 users can actively browse/interact simultaneously
 - Smooth performance for typical Moodle operations
 
-**Burst Capacity**: **Up to 15+ concurrent users** (with backlog queue)
-- Additional 200 users can queue for up to ~30 seconds
+**Burst Capacity**: **Up to 12+ concurrent users** (with backlog queue)
+- Additional 84 users can queue for up to ~30 seconds
 - Perfect for scenarios like "everyone clicks submit at once"
 - Queue prevents connection drops during traffic spikes
 
