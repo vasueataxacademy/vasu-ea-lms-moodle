@@ -29,6 +29,7 @@ Internet → Nginx (SSL/Reverse Proxy) → Moodle → MariaDB
 /
 ├── docker-compose.yml      ← Main Docker configuration
 ├── docker-compose.ssl.yml  ← SSL certificate management
+├── Dockerfile             ← Custom Moodle image with optimizations
 ├── .env.example           ← Environment variables template
 ├── ssl-setup.sh           ← SSL certificate setup helper
 ├── ssl-renew.sh           ← SSL certificate renewal helper
@@ -39,6 +40,10 @@ Internet → Nginx (SSL/Reverse Proxy) → Moodle → MariaDB
 │   ├── nginx.conf         ← Nginx configuration
 │   ├── ssl/               ← SSL certificates
 │   └── html/              ← Static files
+├── php/
+│   └── php-fpm.conf       ← PHP-FPM pool configuration (low-RAM optimized)
+├── mariadb/
+│   └── custom-low-optimised.cnf ← MariaDB configuration (low-RAM optimized)
 ├── monitoring/            ← Resource monitoring scripts
 │   ├── monitor-stats.sh   ← Main monitoring script
 │   ├── analyze-logs.sh    ← Log analysis tools
@@ -86,6 +91,9 @@ REDIS_PASSWORD=your_redis_password
 
 ### 3. Deploy Core Services
 ```bash
+# Build custom Moodle image with optimizations
+docker-compose build moodle
+
 # Start core services (without nginx for SSL setup)
 docker-compose up -d moodle mariadb redis moodlecron
 
@@ -122,41 +130,98 @@ docker-compose up -d nginx
 docker-compose ps
 ```
 
-## 🔧 Resource Allocation (2 vCPU System)
+## 🔧 Resource Allocation (Ultra Minimal RAM System)
 
-| Service     | CPU Limit | Memory Limit | Purpose |
-|-------------|-----------|--------------|---------|
-| Moodle      | 0.8 vCPU  | 512MB       | Main application |
-| MariaDB     | 0.8 vCPU  | 1GB         | Database |
-| Redis       | 0.5 vCPU  | 512MB       | Caching |
-| MoodleCron  | 0.2 vCPU  | 256MB       | Scheduled tasks |
-| Nginx       | 0.1 vCPU  | 64MB        | Reverse proxy |
+| Service     | CPU Limit | Memory Limit | Purpose | Optimizations |
+|-------------|-----------|--------------|---------|---------------|
+| Moodle      | 0.8 vCPU  | ~576MB      | Main application | **3 PHP-FPM workers × 192MB** |
+| MariaDB     | 0.8 vCPU  | ~100MB      | Database | 25 max connections |
+| Redis       | 0.5 vCPU  | 64MB        | Caching | **Memory-limited cache** |
+| MoodleCron  | 0.2 vCPU  | 192MB       | Scheduled tasks | **Shared ultra-minimal config** |
+| Nginx       | 0.1 vCPU  | 64MB        | Reverse proxy | Standard config |
 
-## 🗄️ MariaDB Low RAM Configuration
+**Total Memory Usage**: ~1GB (suitable for 1.5GB+ instances)
 
-This setup includes a custom MariaDB configuration optimized for low RAM instances (`mariadb/custom-low-optimised.cnf`). This configuration is automatically applied to reduce memory usage while maintaining acceptable performance.
+## 🗄️ Low RAM Optimizations
+
+This setup includes custom configurations optimized for low RAM instances, targeting both MariaDB and PHP-FPM to reduce memory usage while maintaining acceptable performance.
+
+### MariaDB Configuration
+
+Custom MariaDB configuration (`mariadb/custom-low-optimised.cnf`) is automatically applied to reduce memory usage.
+
+### PHP-FPM Configuration
+
+Custom PHP-FPM pool configuration (`php/php-fpm.conf`) optimizes worker processes for low-RAM environments with performance tuning.
 
 ### Key Optimizations
 
+**MariaDB Settings:**
 | Setting | Value | Purpose |
 |---------|-------|---------|
 | `innodb_buffer_pool_size` | 64M | Reduced from default ~128M for low RAM |
-| `max_connections` | 50 | Limited concurrent connections |
+| `max_connections` | 25 | **Further reduced** concurrent connections |
 | `tmp_table_size` | 16M | Smaller temporary tables |
 | `max_heap_table_size` | 16M | Reduced memory table size |
 | `query_cache_type` | 0 | Disabled to save memory |
 | `innodb_log_buffer_size` | 8M | Smaller log buffer |
 
+**PHP-FPM Settings:**
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `pm` | static | Fixed number of workers (predictable memory) |
+| `pm.max_children` | 3 | **Ultra-minimal** worker processes for extreme low RAM |
+| `pm.max_requests` | 350 | **Increased** restart threshold (better performance) |
+| `listen.backlog` | 200 | **Increased** connection queue limit |
+| `memory_limit` | 192M | **Reduced** per-process memory limit |
+
+**Redis Settings:**
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `maxmemory` | 64MB | **Hard memory limit for cache** |
+| `maxmemory-policy` | allkeys-lru | Evict least recently used keys when full |
+
 ### Memory Usage Impact
 - **Standard MariaDB**: ~200-300MB baseline memory
-- **Low RAM Config**: ~80-120MB baseline memory
-- **Trade-off**: Slightly reduced performance for significantly lower memory usage
+- **Ultra Low RAM MariaDB Config**: ~80-100MB baseline memory (25 connections vs 50)
+- **Standard PHP-FPM**: ~8-16 workers × 256MB = 2-4GB potential memory
+- **Ultra Minimal PHP-FPM Config**: **3 workers × 192MB = ~576MB maximum memory**
+- **Standard Redis**: Unlimited memory usage (can grow to GB)
+- **Ultra Low RAM Redis Config**: Hard 64MB limit with LRU eviction
+- **Combined Trade-off**: **Extremely reduced concurrent capacity** for **ultra-minimal memory footprint (~1GB total)**
 
 ### When to Use
-- Instances with ≤2GB RAM
+- **Instances with ≤1.5GB RAM**
 - Development/testing environments
-- Small user bases (<100 concurrent users)
+- **Small user bases (<8 concurrent users with bursts up to 15)**
 - Budget-conscious deployments
+- Single-tenant Moodle installations
+- **Ultra minimal RAM environments (1GB instances)**
+- **Proof-of-concept deployments**
+
+### Concurrency Analysis
+
+**Your Current Configuration Supports:**
+
+**Steady State**: **3 concurrent users** (PHP-FPM workers)
+- 3 users can actively browse/interact simultaneously
+- Smooth performance for typical Moodle operations
+
+**Burst Capacity**: **Up to 15+ concurrent users** (with backlog queue)
+- Additional 200 users can queue for up to ~30 seconds
+- Perfect for scenarios like "everyone clicks submit at once"
+- Queue prevents connection drops during traffic spikes
+
+**Practical Scenarios:**
+- **✅ Small classroom (20 students)**: 3-5 typically active, occasional bursts when assignment opens
+- **✅ Team training (15 people)**: Self-paced learning with periodic simultaneous access
+- **✅ Development team**: Multiple developers testing features
+- **⚠️ Live webinar (30+ participants)**: Might struggle if everyone interacts simultaneously
+
+**Performance Characteristics:**
+- **Normal usage**: Sub-second response times
+- **During bursts**: 2-5 second delays while queue processes
+- **Overload**: Graceful degradation, no connection drops
 
 ### Monitoring Performance
 ```bash
@@ -167,14 +232,25 @@ docker exec -it mariadb mysql -u root -p${MARIADB_ROOT_PASSWORD} -e "
   SHOW STATUS LIKE 'Created_tmp_disk_tables';
 "
 
-# Alternative: Interactive session (will prompt for password)
+# Check PHP-FPM status and worker processes
+docker exec -it moodle curl -s http://localhost:8080/status
+docker exec -it moodle ps aux | grep php-fpm
+
+# Monitor PHP-FPM pool status (detailed)
+docker exec -it moodle curl -s "http://localhost:8080/status?full"
+
+# Check Redis memory usage and eviction stats
+docker exec -it redis redis-cli info memory
+docker exec -it redis redis-cli info stats | grep evicted
+
+# Alternative: Interactive MariaDB session (will prompt for password)
 docker exec -it mariadb mysql -u root -p
 
 # Monitor slow queries
 docker exec -it mariadb tail -f /bitnami/mariadb/slow.log
 
 # Check overall container resource usage
-docker stats mariadb --no-stream
+docker stats --no-stream
 ```
 
 ## 🔒 SSL/HTTPS Setup

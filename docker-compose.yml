@@ -47,7 +47,7 @@ services:
       - MOODLE_REDIS_HOST=redis
       - MOODLE_REDIS_PORT_NUMBER=6379
       - MOODLE_CACHE_STORE_SESSION=redis
-      - PHP_MEMORY_LIMIT=256M
+      - PHP_MEMORY_LIMIT=192M           #low ram config
       - MOODLE_REVERSEPROXY=yes
       - MOODLE_SSLPROXY=yes
       - BITNAMI_DEBUG=false
@@ -107,6 +107,7 @@ services:
     volumes:
       - ./data/redis:/bitnami/redis/data
     restart: always
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
     # deploy:
     #   resources:
     #     limits:

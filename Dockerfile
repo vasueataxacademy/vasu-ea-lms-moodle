@@ -2,6 +2,9 @@ FROM bitnami/moodle:4.3.2
 
 USER root
 
+# Copy custom PHP-FPM pool config
+COPY php/php-fpm.conf /opt/bitnami/php/etc/php-fpm.d/www.conf
+
 # Install Redis extension using pecl (simpler approach)
 RUN apt-get update && \
     apt-get install -y build-essential php-dev php-pear && \

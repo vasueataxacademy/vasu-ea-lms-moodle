@@ -1,7 +1,7 @@
 [mysqld]
 # General
 skip-name-resolve
-max_connections         = 50
+max_connections         = 25
 connect_timeout         = 5
 wait_timeout            = 600
 interactive_timeout     = 600
