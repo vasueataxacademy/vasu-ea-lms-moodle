@@ -1,32 +1,51 @@
 [mysqld]
-# General
+# General - Conservative for 1GB RAM
 skip-name-resolve
-max_connections         = 25
+max_connections         = 30
 connect_timeout         = 5
-wait_timeout            = 600
-interactive_timeout     = 600
+wait_timeout            = 300
+interactive_timeout     = 300
+max_connect_errors      = 100000
 
-# InnoDB
-innodb_buffer_pool_size = 64M
+# Thread handling - Minimal overhead
+thread_cache_size       = 8
+thread_stack            = 192K
+
+# InnoDB - Conservative memory usage (~200MB total)
+innodb_buffer_pool_size = 80M
 innodb_log_buffer_size  = 8M
 innodb_file_per_table   = 1
 innodb_flush_log_at_trx_commit = 2
 innodb_flush_method     = O_DIRECT
 innodb_io_capacity      = 200
+innodb_read_io_threads  = 2
+innodb_write_io_threads = 2
+innodb_lock_wait_timeout = 10
 
 # MyISAM
 key_buffer_size         = 8M
 
-# Query Cache
+# Query Cache - Disabled
 query_cache_type        = 0
 query_cache_size        = 0
 
-# Temp Tables
+# Temp Tables - Conservative
 tmp_table_size          = 16M
 max_heap_table_size     = 16M
 
-# Logging
-slow_query_log          = 1
-slow_query_log_file     = /bitnami/mariadb/slow.log
-long_query_time         = 10
+# Sorting and grouping - Small buffers
+sort_buffer_size        = 256K
+read_buffer_size        = 128K
+read_rnd_buffer_size    = 256K
+
+# Connection handling
+back_log                = 50
+
+# Binary logging - Minimal impact
+sync_binlog             = 0
+binlog_cache_size       = 16K
+
+# Logging - Disabled during load tests
+slow_query_log          = 0
+general_log             = 0
 
