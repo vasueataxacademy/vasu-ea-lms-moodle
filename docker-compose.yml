@@ -65,7 +65,7 @@ services:
     #       memory: 256M
     #       cpus: '0.4'
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s --max-time 10 --insecure --resolve lms.vasueataxacademy.com:443:nginx https://lms.vasueataxacademy.com/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f -s --max-time 20 https://lms.vasueataxacademy.com/ || exit 1"]
       interval: 120s
       timeout: 30s
       retries: 3
