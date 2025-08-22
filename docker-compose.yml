@@ -21,10 +21,11 @@ services:
     #       memory: 32M
     #       cpus: '0.05'
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
       interval: 60s
       timeout: 15s
-      retries: 2
+      retries: 3
+      start_period: 30s
 
   moodle:
     build: .
@@ -64,11 +65,11 @@ services:
     #       memory: 256M
     #       cpus: '0.4'
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/login/index.php"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/login/index.php || exit 1"]
       interval: 120s
       timeout: 30s
       retries: 3
-      start_period: 60s
+      start_period: 90s
 
   mariadb:
     image: bitnami/mariadb:11.1
@@ -93,7 +94,7 @@ services:
     #       memory: 256M
     #       cpus: '0.2'
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}"]
+      test: ["CMD", "/opt/bitnami/mariadb/bin/mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MARIADB_ROOT_PASSWORD"]
       interval: 30s
       timeout: 10s
       retries: 5
