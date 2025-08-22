@@ -64,10 +64,11 @@ services:
     #       memory: 256M
     #       cpus: '0.4'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/login/index.php"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/login/index.php"]
       interval: 120s
       timeout: 30s
-      retries: 2
+      retries: 3
+      start_period: 60s
 
   mariadb:
     image: bitnami/mariadb:11.1
@@ -92,10 +93,11 @@ services:
     #       memory: 256M
     #       cpus: '0.2'
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
 
   redis:
     image: bitnami/redis:7.2
