@@ -65,7 +65,7 @@ services:
     #       memory: 256M
     #       cpus: '0.4'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/login/index.php", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8080/"]
       interval: 120s
       timeout: 30s
       retries: 3
