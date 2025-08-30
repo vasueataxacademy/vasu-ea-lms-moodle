@@ -47,6 +47,7 @@ services:
       - MOODLE_DATABASE_PASSWORD=${MARIADB_PASSWORD}
       - MOODLE_REDIS_HOST=redis
       - MOODLE_REDIS_PORT_NUMBER=6379
+      - MOODLE_REDIS_PASSWORD=${REDIS_PASSWORD}
       - MOODLE_CACHE_STORE_SESSION=redis
       - PHP_MEMORY_LIMIT=192M           #low ram config
       - MOODLE_REVERSEPROXY=yes
@@ -143,6 +144,7 @@ services:
       - MOODLE_DATABASE_PASSWORD=${MARIADB_PASSWORD}
       - MOODLE_REDIS_HOST=redis
       - MOODLE_REDIS_PORT_NUMBER=6379
+      - MOODLE_REDIS_PASSWORD=${REDIS_PASSWORD}
       - MOODLE_CACHE_STORE_SESSION=redis
     volumes:
       - ./data/moodle:/bitnami/moodle

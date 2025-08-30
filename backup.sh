@@ -38,8 +38,13 @@ tar -czf ${BACKUP_DIR}/${BACKUP_NAME}_moodle.tar.gz \
 
 # 3. Redis backup (if needed)
 echo "Backing up Redis data..."
-docker exec redis redis-cli -a ${REDIS_PASSWORD} --rdb /tmp/dump.rdb
-docker cp redis:/tmp/dump.rdb ${BACKUP_DIR}/${BACKUP_NAME}_redis.rdb
+if [ -n "${REDIS_PASSWORD}" ]; then
+    docker exec redis redis-cli -a "${REDIS_PASSWORD}" BGSAVE
+    sleep 2  # Wait for background save to complete
+    docker cp redis:/bitnami/redis/data/dump.rdb ${BACKUP_DIR}/${BACKUP_NAME}_redis.rdb
+else
+    echo "Warning: REDIS_PASSWORD not set, skipping Redis backup"
+fi
 
 # 4. Configuration backup
 echo "Backing up configuration..."
