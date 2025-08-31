@@ -34,11 +34,11 @@ fi
 
 # Stop services
 echo "Stopping services..."
-docker-compose down
+docker compose down
 
 # 1. Restore database
 echo "Restoring database..."
-docker-compose up -d mariadb
+docker compose up -d mariadb
 sleep 30  # Wait for MariaDB to start
 
 docker exec -i mariadb mariadb \
@@ -59,7 +59,7 @@ fi
 
 # 4. Start all services
 echo "Starting all services..."
-docker-compose up -d
+docker compose up -d
 
 echo "Restore completed successfully!"
 echo "Please verify your Moodle installation is working correctly."
