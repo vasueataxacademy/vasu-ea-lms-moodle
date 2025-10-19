@@ -287,7 +287,7 @@ This separation provides:
 docker-compose stop nginx
 
 # Get subdomain certificate using separate SSL compose file
-docker-compose -f docker-compose.ssl.yml run --rm certbot \
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot \
   certonly --webroot -w /usr/share/nginx/html \
   -d subdomain.yourdomain.com \
   --non-interactive \
@@ -298,6 +298,28 @@ docker-compose -f docker-compose.ssl.yml run --rm certbot \
 docker-compose start nginx
 ```
 
+**If you encounter "archive directory exists" error:**
+```bash
+# Option 1: Force renewal (quick fix)
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot \
+  certonly --webroot -w /usr/share/nginx/html \
+  -d subdomain.yourdomain.com \
+  --email youremail@yourdomain.com \
+  --agree-tos --non-interactive --force-renewal
+
+# Option 2: Clean up and start fresh (recommended)
+sudo rm -rf ./nginx/ssl/live/subdomain.yourdomain.com
+sudo rm -rf ./nginx/ssl/archive/subdomain.yourdomain.com
+sudo rm -f ./nginx/ssl/renewal/subdomain.yourdomain.com.conf
+
+# Then run the initial certificate command again
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot \
+  certonly --webroot -w /usr/share/nginx/html \
+  -d subdomain.yourdomain.com \
+  --email youremail@yourdomain.com \
+  --agree-tos --non-interactive
+```
+
 **Nginx Configuration:**
 ```bash
 ssl_certificate /etc/letsencrypt/live/subdomain.yourdomain.com/fullchain.pem;
@@ -306,11 +328,8 @@ ssl_certificate_key /etc/letsencrypt/live/subdomain.yourdomain.com/privkey.pem;
 
 **Renewal (Automated):**
 ```bash
-# Add to crontab -e
-0 3 * * 0 cd /path/to/project && \
-  docker-compose -f docker-compose.ssl.yml run --rm certbot \
-  renew --webroot -w /usr/share/nginx/html && \
-  docker-compose restart nginx
+# Add to crontab -e (single line, no backslashes)
+0 3 * * 0 cd /path/to/project && docker-compose -f docker-compose.ssl.yml run --rm certbot certbot renew --webroot -w /usr/share/nginx/html && docker-compose restart nginx
 ```
 
 ### Option 2: Wildcard Certificate Setup
@@ -321,7 +340,7 @@ ssl_certificate_key /etc/letsencrypt/live/subdomain.yourdomain.com/privkey.pem;
 docker-compose stop nginx
 
 # Get wildcard certificate using separate SSL compose file
-docker-compose -f docker-compose.ssl.yml run --rm -it certbot \
+docker-compose -f docker-compose.ssl.yml run --rm -it certbot certbot \
   certonly --manual \
   --preferred-challenges dns \
   -d "*.yourdomain.com" \
@@ -351,7 +370,7 @@ ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
 ```bash
 # Set calendar reminder every 2 months
 docker-compose stop nginx
-docker-compose -f docker-compose.ssl.yml run --rm -it certbot \
+docker-compose -f docker-compose.ssl.yml run --rm -it certbot certbot \
   renew --manual --preferred-challenges dns
 docker-compose start nginx
 ```
@@ -381,7 +400,7 @@ For easier SSL management, use the provided helper scripts:
 **Certificate Status:**
 ```bash
 # Check certificate status and expiry
-docker-compose -f docker-compose.ssl.yml run --rm certbot certificates
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot certificates
 ```
 
 ### Recommendation for Non API available DNS (E.g. Namecheap) Users:
@@ -778,14 +797,14 @@ docker exec -it moodlecron /opt/bitnami/php/bin/php /bitnami/moodle/admin/cli/cr
 ./ssl-renew.sh --manual                          # Manual renewal (wildcard)
 
 # Certificate status and information
-docker-compose -f docker-compose.ssl.yml run --rm certbot certificates
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot certificates
 
 # Test certificate expiry
-docker-compose -f docker-compose.ssl.yml run --rm certbot \
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot \
   certificates | grep -A 2 "Certificate Name"
 
 # Force certificate renewal (if needed)
-docker-compose -f docker-compose.ssl.yml run --rm certbot \
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot \
   renew --force-renewal
 ```
 
@@ -793,8 +812,8 @@ docker-compose -f docker-compose.ssl.yml run --rm certbot \
 
 **For subdomain certificates (recommended):**
 ```bash
-# Add to crontab -e
-0 3 * * 0 cd /path/to/project && ./ssl-renew.sh
+# Add to crontab -e (single line)
+0 3 * * 0 cd /path/to/project && docker-compose -f docker-compose.ssl.yml run --rm certbot certbot renew --webroot -w /usr/share/nginx/html && docker-compose restart nginx
 ```
 
 **For wildcard certificates:**
@@ -820,8 +839,8 @@ openssl s_client -connect your-domain.com:443 -servername your-domain.com
 **Renewal failures:**
 ```bash
 # Check certbot logs
-docker-compose -f docker-compose.ssl.yml run --rm certbot \
-  --dry-run renew
+docker-compose -f docker-compose.ssl.yml run --rm certbot certbot \
+  renew --dry-run
 
 # Manual certificate check
 ./ssl-renew.sh --manual
